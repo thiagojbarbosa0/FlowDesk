@@ -1,0 +1,16 @@
+export const qk = {
+  me: ['me'] as const,
+  workspaces: ['workspaces'] as const,
+  workspace: (id: number) => ['workspaces', id] as const,
+  members: (ws: number) => ['members', ws] as const,
+  labels: (ws: number) => ['labels', ws] as const,
+  projects: (ws: number) => ['projects', ws] as const,
+  project: (id: number) => ['project', id] as const,
+  boards: (p: number) => ['boards', p] as const,
+  board: (b: number) => ['board', b] as const,
+  card: (c: number) => ['card', c] as const,
+  comments: (c: number) => ['comments', c] as const,
+  notifications: ['notifications'] as const,
+  dashboard: (ws: number) => ['dashboard', ws] as const,
+  activities: (ws: number) => ['activities', ws] as const,
+}

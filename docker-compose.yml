@@ -1,0 +1,101 @@
+name: flowdesk
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: flowdesk
+      POSTGRES_USER: flowdesk
+      POSTGRES_PASSWORD: secret
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowdesk"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend:/app
+    ports: ["8000:8000"]
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: base64:dGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVz # troque em produção!
+      APP_URL: http://localhost:8000
+      FRONTEND_URL: http://localhost:5173
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: flowdesk
+      DB_USERNAME: flowdesk
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: ./backend
+    command: sh -c "sleep 5 && php artisan queue:work redis --tries=2 --sleep=1"
+    volumes:
+      - ./backend:/app
+    environment:
+      APP_ENV: local
+      APP_KEY: base64:dGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVz
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: flowdesk
+      DB_USERNAME: flowdesk
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+    depends_on:
+      backend: { condition: service_started }
+
+  scheduler:
+    build: ./backend
+    command: sh -c "sleep 5 && php artisan schedule:work"
+    volumes:
+      - ./backend:/app
+    environment:
+      APP_ENV: local
+      APP_KEY: base64:dGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVzdGVz
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: flowdesk
+      DB_USERNAME: flowdesk
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+    depends_on:
+      backend: { condition: service_started }
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports: ["5173:5173"]
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      backend: { condition: service_started }
+
+volumes:
+  pgdata:
